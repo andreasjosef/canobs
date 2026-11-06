@@ -7,11 +7,10 @@ from pathlib import Path
 import questionary
 from questionary import Choice, Separator, Style
 
-from . import agent, canvas, obsidian, prompts
+from . import agent, canvas, config, obsidian, prompts
 from .convert import to_markdown
 
 COURSE_ID = 585
-NOTES_DIR = Path.home() / "notes" / "chas"
 
 RESOURCE_TYPES = ("Page", "Assignment")
 
@@ -141,14 +140,14 @@ def start_job(note: Path, job: tuple, open_result: bool) -> None:
         "fg:#7aa2f7")
 
 
-def ask(open_result: bool = True, prompt: str | None = None) -> None:
+def ask(notes_dir: Path, open_result: bool = True, prompt: str | None = None) -> None:
     """Run a Claude job on an existing note."""
     if not agent.available():
         say("The claude command was not found on PATH.", "fg:#f7768e")
         sys.exit(1)
-    notes = sorted(NOTES_DIR.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+    notes = sorted(notes_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
     if not notes:
-        say(f"No notes in {NOTES_DIR}.", "fg:#f7768e")
+        say(f"No notes in {notes_dir}.", "fg:#f7768e")
         sys.exit(1)
     note = select("Note", [Choice(n.stem, value=n) for n in notes])
     job = choose_job(prompt, allow_none=False)
@@ -156,14 +155,14 @@ def ask(open_result: bool = True, prompt: str | None = None) -> None:
         start_job(note, job, open_result)
 
 
-def create(open_note: bool = True, prompt: str | None = None) -> None:
+def create(notes_dir: Path, open_note: bool = True, prompt: str | None = None) -> None:
     item = select_resource()
     title = clean(item["title"])
 
     name = slugify(answer(questionary.text(
         "Note name", default=slugify(title), style=STYLE, qmark="›"
     )).strip().removesuffix(".md")) or slugify(title)
-    path = NOTES_DIR / f"{name}.md"
+    path = notes_dir / f"{name}.md"
     if path.exists() and not answer(questionary.confirm(
         f"{path.name} already exists. Overwrite?", default=False, style=STYLE, qmark="›"
     )):
@@ -171,12 +170,12 @@ def create(open_note: bool = True, prompt: str | None = None) -> None:
     job = choose_job(prompt, allow_none=True)
 
     body = to_markdown(canvas.item_html(COURSE_ID, item))
-    NOTES_DIR.mkdir(parents=True, exist_ok=True)
-    path.write_text(f"# {title}\n\n_Source: {item['html_url']}_\n\n{body}")
+    notes_dir.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"# {title}\n\n_Source: {item['html_url']}_\n\n{body}", encoding="utf-8")
     say(f"✓ Created {path}", "fg:#9ece6a bold")
 
     if open_note and not obsidian.open_note(path):
-        say("Could not open Obsidian (xdg-open not found).", "fg:#f7768e")
+        say("Could not open Obsidian (no way to open obsidian:// links found).", "fg:#f7768e")
     if job:
         start_job(path, job, open_note)
 
@@ -191,17 +190,18 @@ def main() -> None:
         p = sub.add_parser(name, help=help_text)
         p.add_argument("--no-open", action="store_true", help="don't open results in Obsidian")
         p.add_argument("--prompt", help="custom Claude prompt (skips the job menu)")
+        p.add_argument("--dir", metavar="PATH",
+                       help="notes folder (default: NOTES_DIR in .env, else ~/notes/chas)")
     args = parser.parse_args()
 
-    opts = dict(
-        open_note=not getattr(args, "no_open", False),
-        prompt=getattr(args, "prompt", None),
-    )
+    notes_dir = config.notes_dir(getattr(args, "dir", None))
+    open_note = not getattr(args, "no_open", False)
+    prompt = getattr(args, "prompt", None)
     try:
         if args.cmd == "ask":
-            ask(open_result=opts["open_note"], prompt=opts["prompt"])
+            ask(notes_dir, open_result=open_note, prompt=prompt)
         else:
-            create(**opts)
+            create(notes_dir, open_note=open_note, prompt=prompt)
     except canvas.CanvasError as e:
         say(f"✗ {e}", "fg:#f7768e bold")
         sys.exit(1)

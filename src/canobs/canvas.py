@@ -1,15 +1,13 @@
 """Minimal Canvas REST client (stdlib only)."""
 import json
-import os
 import re
 import urllib.error
 import urllib.request
-from pathlib import Path
+
+from . import config
 
 BASE_URL = "https://chasacademy.instructure.com"
 
-
-ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 TOKEN_HELP = "Create a new one in Canvas (Account → Settings → New access token)"
 
 
@@ -18,15 +16,10 @@ class CanvasError(Exception):
 
 
 def _load_token() -> str:
-    token = os.environ.get("CANVAS_TOKEN")
+    token = config.get("CANVAS_TOKEN")
     if token:
         return token
-    if ENV_FILE.exists():
-        for line in ENV_FILE.read_text().splitlines():
-            key, _, value = line.partition("=")
-            if key.strip() == "CANVAS_TOKEN" and value.strip():
-                return value.strip().strip('"').strip("'")
-    raise CanvasError(f"CANVAS_TOKEN is not set. Add it to {ENV_FILE} or export it.")
+    raise CanvasError(f"CANVAS_TOKEN is not set. Add it to {config.ENV_FILE} or export it.")
 
 
 def _request(url: str):

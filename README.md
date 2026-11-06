@@ -3,8 +3,9 @@
 Turn Canvas course pages into clean markdown notes in Obsidian, from the terminal.
 
 `canobs create` lists the modules of a Canvas course, lets you pick a page or
-assignment, and saves it as markdown in `~/notes/chas/`. The note then opens
-in Obsidian. Optionally, Claude writes a follow-up file in the background, such
+assignment, and saves it as markdown in your notes folder (`~/notes/chas/`
+unless you [configure another](#configuration)). The note then opens in
+Obsidian. Works on macOS, Windows and Linux. Optionally, Claude writes a follow-up file in the background, such
 as a checklist for finishing the workshop.
 
 ```
@@ -19,29 +20,39 @@ as a checklist for finishing the workshop.
 ## Requirements
 
 - [uv](https://docs.astral.sh/uv/) (it provides Python 3.11+)
+- git, to clone the repo
 - A Canvas access token
 - Optional:
-  - [Obsidian](https://obsidian.md), with `~/notes` as a vault, to open notes automatically
+  - [Obsidian](https://obsidian.md), with your notes folder inside a vault, to
+    open notes automatically
   - [Claude Code](https://claude.com/claude-code) (`claude` on `PATH`) for Claude jobs
-  - `notify-send` for desktop notifications when a job finishes
-  - sway, to move focus to Obsidian
+  - Linux only: `notify-send` for desktop notifications (macOS has them built
+    in; Windows gets no notification, see the log), and sway to move focus to
+    Obsidian
 
 ## Setup
 
-1. **Create a Canvas token:** in Canvas, go to *Account → Settings → Approved
-   integrations → New access token*. Give it an expiry date.
-2. **Store it** in `.env` in the project folder. Keep the file private:
+1. **Get the code:**
    ```sh
-   echo 'CANVAS_TOKEN=…' > .env   # or write the file in your editor
-   chmod 600 .env
+   git clone <repo-url> canobs
+   cd canobs
+   ```
+2. **Create a Canvas token:** in Canvas, go to *Account → Settings → Approved
+   integrations → New access token*. Give it an expiry date.
+3. **Store it** in `.env` in the project folder. Copy the example and fill in
+   `CANVAS_TOKEN` in your editor (and `NOTES_DIR` if you want another folder):
+   ```sh
+   cp .env.example .env          # Windows (PowerShell): copy .env.example .env
+   chmod 600 .env                # macOS/Linux: keep it private
    ```
    An exported `CANVAS_TOKEN` environment variable takes precedence over `.env`.
-   `.env` is in `.gitignore`.
-3. **Install** the command:
+   `.env` is in `.gitignore`. Don't share your token.
+4. **Install** the command:
    ```sh
    uv tool install --editable .
    ```
-   The install is editable, so code changes apply immediately. canobs runs
+   If `canobs` isn't found afterwards, run `uv tool update-shell` and open a
+   new terminal. The install is editable, so code changes apply immediately. canobs runs
    from this folder and reads `.env` from it, so don't move the folder.
    After adding a dependency, reinstall with
    `uv tool install --editable --force .`. To uninstall, run
@@ -54,10 +65,11 @@ canobs                        # same as canobs create
 canobs create                 # Canvas page/assignment → note
 canobs ask                    # run a Claude job on an existing note
 canobs create --no-open       # don't open anything in Obsidian
+canobs create --dir ~/vault/x # save into this folder instead
 canobs ask --prompt "…"       # skip the job menu and use this prompt
 ```
 
-Both commands take `--no-open` and `--prompt`.
+Both commands take `--no-open`, `--prompt` and `--dir`.
 
 In the menus, use ↑↓ to move and Enter to pick. Type to filter the list.
 Ctrl-C quits at any step.
@@ -83,11 +95,12 @@ _Source: https://chasacademy.instructure.com/courses/585/modules/items/24042_
 ```
 
 It then opens in Obsidian. If Obsidian is running, the existing window is
-used; if not, it starts. On sway, the Obsidian window gets focus.
+used; if not, it starts. On sway, the Obsidian window gets focus. The notes
+folder must be inside an Obsidian vault for this to work.
 
 ### ask
 
-Pick a note in `~/notes/chas/` (newest first), then a job. This is for when
+Pick a note in the notes folder (newest first), then a job. This is for when
 you want a checklist or summary after the note already exists.
 
 ## Claude jobs
@@ -105,9 +118,9 @@ If a job fails, you get a red notification and the details go to
 
 ### Prompts
 
-Jobs are defined in `~/.config/canobs/prompts.toml`. The file is created from
-`src/canobs/prompts.default.toml` the first time you run a job. Edits apply on
-the next run. Delete the file to go back to the default.
+Jobs are defined in `src/canobs/prompts.toml` in this repo, so everyone gets
+the same jobs and improvements arrive with `git pull`. Edits apply on the next
+run. To share a new job, commit it.
 
 ```toml
 # model = "sonnet"      # all jobs; omit to use Claude Code's default model
@@ -146,13 +159,22 @@ contain a wrong or harmful command. Check commands against the source note
 
 ## Configuration
 
+Per-user settings go in `.env` (see `.env.example`). An exported environment
+variable with the same name wins over `.env`.
+
+| Setting | Meaning | Default |
+|---|---|---|
+| `CANVAS_TOKEN` | Your Canvas access token | required |
+| `NOTES_DIR` | Folder notes are saved in and `ask` lists; `~` works on every OS | `~/notes/chas` |
+
+`--dir PATH` on `create` or `ask` overrides `NOTES_DIR` for one run.
+
 These values are constants in the code:
 
 | What | Where |
 |---|---|
 | Canvas URL | `BASE_URL` in `src/canobs/canvas.py` |
 | Course | `COURSE_ID` in `src/canobs/cli.py` |
-| Notes folder | `NOTES_DIR` in `src/canobs/cli.py` |
 | Claude timeout | `TIMEOUT` in `src/canobs/agent.py` |
 
 ## Project layout
@@ -162,10 +184,11 @@ src/canobs/
   cli.py                  commands, menus, note naming
   canvas.py               Canvas REST client (stdlib, follows pagination)
   convert.py              Canvas HTML → markdown
+  config.py               reads .env / environment (token, notes folder)
   obsidian.py             open via obsidian:// URI, focus on sway
   agent.py                background Claude worker and notifications
   prompts.py              loads and validates prompts.toml
-  prompts.default.toml    default prompts, copied to ~/.config/canobs/
+  prompts.toml            Claude jobs, shared via the repo
 ```
 
 ## Troubleshooting

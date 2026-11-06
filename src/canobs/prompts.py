@@ -1,14 +1,10 @@
-"""Claude job prompts, loaded from ~/.config/canobs/prompts.toml."""
-import os
+"""Claude job prompts, loaded from prompts.toml next to this file."""
 import re
-import shutil
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "canobs"
-PROMPTS_FILE = CONFIG_DIR / "prompts.toml"
-DEFAULT_FILE = Path(__file__).with_name("prompts.default.toml")
+PROMPTS_FILE = Path(__file__).with_name("prompts.toml")
 
 
 @dataclass
@@ -34,12 +30,9 @@ class PromptsError(Exception):
 
 
 def load() -> Prompts:
-    """Read the prompts file, creating it from the default on first use."""
-    if not PROMPTS_FILE.exists():
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(DEFAULT_FILE, PROMPTS_FILE)
+    """Read and validate the prompts file."""
     try:
-        data = tomllib.loads(PROMPTS_FILE.read_text())
+        data = tomllib.loads(PROMPTS_FILE.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as e:
         raise PromptsError(f"{PROMPTS_FILE}: {e}") from e
 
