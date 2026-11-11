@@ -1,7 +1,9 @@
 [project]
 name = "canobs"
 version = "0.1.0"
-description = "Turn Canvas course module resources into markdown notes"
+description = "Turn Canvas course pages into markdown notes in Obsidian"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "markdownify>=1.2.3",

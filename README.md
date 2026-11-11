@@ -2,10 +2,15 @@
 
 Turn Canvas course pages into clean markdown notes in Obsidian, from the terminal.
 
+Made for my classmates at Chas Academy: it reads our course (course 585 on
+`chasacademy.instructure.com`). For another school or course, change the
+two constants listed under [Configuration](#configuration).
+
 `canobs create` lists the modules of a Canvas course, lets you pick a page or
 assignment, and saves it as markdown in your notes folder (`~/notes/chas/`
 unless you [configure another](#configuration)). The note then opens in
-Obsidian. Works on macOS, Windows and Linux. Optionally, Claude writes a follow-up file in the background, such
+Obsidian. Works on macOS, Windows and Linux. Optionally, Claude writes a
+follow-up file in the background, such
 as a checklist for finishing the workshop.
 
 ```
@@ -34,7 +39,7 @@ as a checklist for finishing the workshop.
 
 1. **Get the code:**
    ```sh
-   git clone <repo-url> canobs
+   git clone https://github.com/andreasjosef/canobs.git
    cd canobs
    ```
 2. **Create a Canvas token:** in Canvas, go to *Account → Settings → Approved
@@ -52,11 +57,18 @@ as a checklist for finishing the workshop.
    uv tool install --editable .
    ```
    If `canobs` isn't found afterwards, run `uv tool update-shell` and open a
-   new terminal. The install is editable, so code changes apply immediately. canobs runs
-   from this folder and reads `.env` from it, so don't move the folder.
-   After adding a dependency, reinstall with
-   `uv tool install --editable --force .`. To uninstall, run
-   `uv tool uninstall canobs`.
+   new terminal. canobs runs from this folder and reads `.env` from it, so
+   don't move the folder. To uninstall, run `uv tool uninstall canobs`.
+
+### Updating
+
+```sh
+cd canobs
+git pull
+```
+
+The install is editable, so that's all. If a pull adds a dependency, reinstall
+with `uv tool install --editable --force .`.
 
 ## Usage
 
@@ -207,3 +219,8 @@ Canvas problems are reported as one red `✗` line, without a traceback:
   `claude setup-token` for a long-lived token.
 - **Images don't show in notes:** images uploaded to Canvas need a Canvas
   login, so the image links in your notes won't load.
+
+## License
+
+[MIT](LICENSE). Found a bug or wrote a useful job? Open an issue or a pull
+request.
