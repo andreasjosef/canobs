@@ -34,6 +34,13 @@ exact commands, file names and deliverables the note gives.
 """
 
 [[job]]
+name = "Reformat an assignment"
+file = "reformatted"
+prompt= """
+Reformat this note for readability and understandability without changing its content. \
+"""
+
+[[job]]
 name = "Summary"
 file = "summary"
 prompt = """
