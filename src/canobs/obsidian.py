@@ -1,5 +1,6 @@
 """Open a note in Obsidian and bring its window to the front."""
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -23,12 +24,30 @@ def _focus_sway(timeout: float = 8.0) -> None:
         time.sleep(0.25)
 
 
+def is_wsl() -> bool:
+    """Linux under WSL, where the desktop (and Obsidian) is Windows."""
+    return sys.platform == "linux" and "microsoft" in platform.uname().release.lower()
+
+
+def _vault_path(path: Path) -> str:
+    """The note's path as Obsidian sees it. Under WSL, Obsidian runs on Windows,
+    so /mnt/c/... has to become C:\\..."""
+    resolved = str(path.resolve())
+    if is_wsl() and shutil.which("wslpath"):
+        r = subprocess.run(["wslpath", "-w", resolved], capture_output=True, text=True)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    return resolved
+
+
 def _open_uri(uri: str, focus: bool) -> bool:
     """Hand a URI to the OS. False if this OS has no way to do that."""
     if sys.platform == "win32":
         os.startfile(uri)
         return True
-    if sys.platform == "darwin":
+    if is_wsl() and shutil.which("explorer.exe"):
+        cmd = ["explorer.exe", uri]  # hands the URI to Windows' protocol handler
+    elif sys.platform == "darwin":
         cmd = ["open", *([] if focus else ["-g"]), uri]  # -g: don't bring to front
     elif shutil.which("xdg-open"):
         cmd = ["xdg-open", uri]
@@ -44,7 +63,7 @@ def _open_uri(uri: str, focus: bool) -> bool:
 
 def open_note(path: Path, focus: bool = True, new_tab: bool = False) -> bool:
     """Open path via the obsidian:// URI; reuses a running instance or starts one."""
-    uri = f"obsidian://open?path={quote(str(path.resolve()), safe='')}"
+    uri = f"obsidian://open?path={quote(_vault_path(path), safe='')}"
     if new_tab:
         uri += "&paneType=tab"
     if not _open_uri(uri, focus):

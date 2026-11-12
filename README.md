@@ -31,9 +31,10 @@ as a checklist for finishing the workshop.
   - [Obsidian](https://obsidian.md), with your notes folder inside a vault, to
     open notes automatically
   - [Claude Code](https://claude.com/claude-code) (`claude` on `PATH`) for Claude jobs
-  - Linux only: `notify-send` for desktop notifications (macOS has them built
-    in; Windows gets no notification, see the log), and sway to move focus to
-    Obsidian
+  - Linux only: `notify-send` for desktop notifications (macOS, Windows and
+    WSL have them built in), and sway to move focus to Obsidian
+  - WSL: canobs opens notes in Windows Obsidian through `explorer.exe`, so
+    keep your notes folder on the Windows side (`/mnt/c/...`)
 
 ## Setup
 

@@ -5,6 +5,7 @@ immediately. The worker runs `claude -p` with no tools, no MCP servers and no
 settings/CLAUDE.md, so the note content is pure input and can't make the agent
 touch or reveal anything; canobs writes the result.
 """
+import base64
 import os
 import shutil
 import subprocess
@@ -61,9 +62,42 @@ def _title(note: Path) -> str:
     return note.stem
 
 
+# A toast via Windows PowerShell's WinRT API. Shown under PowerShell's app ID,
+# since Windows only shows toasts for registered apps. Strings arrive base64
+# encoded, so nothing in a title or filename can break out of the script.
+_TOAST_PS = """
+$d = {{ param($s) [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($s)) }}
+$m = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+$x = $m::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
+$t = $x.GetElementsByTagName('text')
+[void]$t.Item(0).AppendChild($x.CreateTextNode((& $d '{summary}')))
+[void]$t.Item(1).AppendChild($x.CreateTextNode((& $d '{body}')))
+$id = '{{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}}\\WindowsPowerShell\\v1.0\\powershell.exe'
+$m::CreateToastNotifier($id).Show([Windows.UI.Notifications.ToastNotification]::new($x))
+"""
+
+
+def _toast(summary: str, body: str) -> None:
+    """Windows toast, from native Windows or from WSL."""
+    ps = shutil.which("powershell.exe") or shutil.which("powershell")
+    if not ps:
+        return
+    b64 = lambda s: base64.b64encode(s.encode("utf-8")).decode("ascii")
+    script = _TOAST_PS.format(summary=b64(summary), body=b64(body))
+    encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+    try:
+        subprocess.run([ps, "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       timeout=30, **_NO_WINDOW)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        print(f"toast failed: {e}", file=sys.stderr)
+
+
 def _notify(summary: str, body: str, urgency: str = "normal") -> None:
-    """Desktop notification on Linux (notify-send) and macOS. Windows: log only."""
-    if sys.platform == "darwin":
+    """Desktop notification: toast on Windows/WSL, osascript on macOS, notify-send on Linux."""
+    if sys.platform == "win32" or obsidian.is_wsl():
+        _toast(summary, body)
+    elif sys.platform == "darwin":
         subprocess.run(["osascript",
                         "-e", "on run argv",
                         "-e", "display notification (item 2 of argv) with title (item 1 of argv)",
