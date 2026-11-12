@@ -1,12 +1,13 @@
 """Open a note in Obsidian and bring its window to the front."""
 import os
-import platform
 import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 from urllib.parse import quote
+
+from . import windows
 
 
 def _focus_sway(timeout: float = 8.0) -> None:
@@ -24,16 +25,11 @@ def _focus_sway(timeout: float = 8.0) -> None:
         time.sleep(0.25)
 
 
-def is_wsl() -> bool:
-    """Linux under WSL, where the desktop (and Obsidian) is Windows."""
-    return sys.platform == "linux" and "microsoft" in platform.uname().release.lower()
-
-
 def _vault_path(path: Path) -> str:
     """The note's path as Obsidian sees it. Under WSL, Obsidian runs on Windows,
     so /mnt/c/... has to become C:\\..."""
     resolved = str(path.resolve())
-    if is_wsl() and shutil.which("wslpath"):
+    if windows.is_wsl() and shutil.which("wslpath"):
         r = subprocess.run(["wslpath", "-w", resolved], capture_output=True, text=True)
         if r.returncode == 0 and r.stdout.strip():
             return r.stdout.strip()
@@ -45,8 +41,12 @@ def _open_uri(uri: str, focus: bool) -> bool:
     if sys.platform == "win32":
         os.startfile(uri)
         return True
-    if is_wsl() and shutil.which("explorer.exe"):
-        cmd = ["explorer.exe", uri]  # hands the URI to Windows' protocol handler
+    if windows.is_wsl():
+        # Start-Process goes through ShellExecute, like os.startfile above.
+        # (explorer.exe opens Documents instead of following obsidian:// links.)
+        cmd = windows.powershell(f"{windows.DECODE}Start-Process (& $d '{windows.b64(uri)}')")
+        if not cmd:
+            return False
     elif sys.platform == "darwin":
         cmd = ["open", *([] if focus else ["-g"]), uri]  # -g: don't bring to front
     elif shutil.which("xdg-open"):

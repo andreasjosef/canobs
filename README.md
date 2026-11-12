@@ -33,7 +33,7 @@ as a checklist for finishing the workshop.
   - [Claude Code](https://claude.com/claude-code) (`claude` on `PATH`) for Claude jobs
   - Linux only: `notify-send` for desktop notifications (macOS, Windows and
     WSL have them built in), and sway to move focus to Obsidian
-  - WSL: canobs opens notes in Windows Obsidian through `explorer.exe`, so
+  - WSL: canobs opens notes in Windows Obsidian through PowerShell, so
     keep your notes folder on the Windows side (`/mnt/c/...`)
 
 ## Setup
@@ -200,6 +200,7 @@ src/canobs/
   config.py               reads .env / environment (token, notes folder)
   obsidian.py             open via obsidian:// URI, focus on sway
   agent.py                background Claude worker and notifications
+  windows.py              reach the Windows desktop (PowerShell) from Windows or WSL
   prompts.py              loads and validates prompts.toml
   prompts.toml            Claude jobs, shared via the repo
 ```
