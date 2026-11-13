@@ -95,7 +95,8 @@ Ctrl-C quits at any step.
 3. **Note name:** pre-filled with a filename-safe version of the title
    (lowercase ASCII, words joined by `-`). Whatever you type is converted the
    same way. If the file exists, you're asked before it's overwritten.
-4. **Claude:** an optional follow-up job. Pick *None* to skip.
+4. **Claude:** optional follow-up jobs. Press Space to select one or more,
+   then Enter. Select nothing to skip.
 
 The note starts with the original title and a link back to Canvas:
 
@@ -113,8 +114,8 @@ folder must be inside an Obsidian vault for this to work.
 
 ### ask
 
-Pick a note in the notes folder (newest first), then a job. This is for when
-you want a checklist or summary after the note already exists.
+Pick a note in the notes folder (newest first), then one or more jobs. This is
+for when you want a checklist or summary after the note already exists.
 
 ## Claude jobs
 

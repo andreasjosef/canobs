@@ -103,36 +103,41 @@ def select_resource() -> dict:
 
 
 CUSTOM = "Custom prompt…"
-NONE = "None"
+
+Job = tuple[str, str, str, str | None]
 
 
-def choose_job(prompt: str | None, allow_none: bool) -> tuple[str, str, str, str | None] | None:
-    """Return (label, file suffix, prompt, model) for a Claude job, or None to skip."""
+def choose_jobs(prompt: str | None, allow_none: bool) -> list[Job]:
+    """Return (label, file suffix, prompt, model) for each picked Claude job; may be empty."""
     if not agent.available():
-        return None
+        return []
     try:
         config = prompts.load()
     except prompts.PromptsError as e:
         say(str(e), "fg:#f7768e")
         sys.exit(1)
     if prompt:
-        return ("Claude", "claude", prompt, config.model)
+        return [("Claude", "claude", prompt, config.model)]
     jobs = {j.name: j for j in config.jobs}
-    options = ([NONE] if allow_none else []) + list(jobs) + [CUSTOM]
-    picked = answer(questionary.select(
-        "Claude", choices=options, style=STYLE, qmark="›", pointer="❯",
-        use_jk_keys=False, instruction="(optional follow-up file)" if allow_none else "",
+    picked = answer(questionary.checkbox(
+        "Claude", choices=list(jobs) + [CUSTOM], style=STYLE, qmark="›", pointer="❯",
+        use_jk_keys=False,
+        instruction="(space to select, enter to confirm" + (", none to skip)" if allow_none else ")"),
+        validate=lambda xs: allow_none or bool(xs) or "Pick at least one job",
     ))
-    if picked == NONE:
-        return None
-    if picked == CUSTOM:
+    result = [
+        (jobs[name].file.replace("-", " ").capitalize(), jobs[name].file,
+         jobs[name].prompt, config.model_for(jobs[name]))
+        for name in picked if name != CUSTOM
+    ]
+    if CUSTOM in picked:
         text = answer(questionary.text("Prompt", style=STYLE, qmark="›")).strip()
-        return ("Claude", "claude", text, config.model) if text else None
-    job = jobs[picked]
-    return (job.file.replace("-", " ").capitalize(), job.file, job.prompt, config.model_for(job))
+        if text:
+            result.append(("Claude", "claude", text, config.model))
+    return result
 
 
-def start_job(note: Path, job: tuple, open_result: bool) -> None:
+def start_job(note: Path, job: Job, open_result: bool) -> None:
     label, suffix, text, model = job
     out = agent.output_path(note, suffix)
     agent.spawn(note, out, label, text, open_result, model)
@@ -150,8 +155,7 @@ def ask(notes_dir: Path, open_result: bool = True, prompt: str | None = None) ->
         say(f"No notes in {notes_dir}.", "fg:#f7768e")
         sys.exit(1)
     note = select("Note", [Choice(n.stem, value=n) for n in notes])
-    job = choose_job(prompt, allow_none=False)
-    if job:
+    for job in choose_jobs(prompt, allow_none=False):
         start_job(note, job, open_result)
 
 
@@ -167,7 +171,7 @@ def create(notes_dir: Path, open_note: bool = True, prompt: str | None = None) -
         f"{path.name} already exists. Overwrite?", default=False, style=STYLE, qmark="›"
     )):
         sys.exit(1)
-    job = choose_job(prompt, allow_none=True)
+    jobs = choose_jobs(prompt, allow_none=True)
 
     body = to_markdown(canvas.item_html(COURSE_ID, item))
     notes_dir.mkdir(parents=True, exist_ok=True)
@@ -176,7 +180,7 @@ def create(notes_dir: Path, open_note: bool = True, prompt: str | None = None) -
 
     if open_note and not obsidian.open_note(path):
         say("Could not open Obsidian (no way to open obsidian:// links found).", "fg:#f7768e")
-    if job:
+    for job in jobs:
         start_job(path, job, open_note)
 
 
